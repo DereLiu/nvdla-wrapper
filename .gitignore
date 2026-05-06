@@ -13,7 +13,5 @@ src/main/resources/hw/verif/sim_vivado/**/*.log
 src/main/resources/hw/verif/sim_vivado/**/*.pb
 
 # External NVDLA hardware repo / generated hardware files
-src/main/resources/hw/
 
 # External NVDLA hardware repo
-src/main/resources/hw/

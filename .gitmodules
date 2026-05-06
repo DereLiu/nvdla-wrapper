@@ -1,0 +1,3 @@
+[submodule "src/main/resources/hw"]
+	path = src/main/resources/hw
+	url = git@github.com:DereLiu/nvdla-hw.git
