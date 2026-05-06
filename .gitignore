@@ -2,3 +2,18 @@ target
 *.vcp
 *.swp
 *.preprocessed.v
+
+# Vivado / XSim generated artifacts
+src/main/resources/hw/verif/sim_vivado/xsim.dir/
+src/main/resources/hw/verif/sim_vivado/**/*.wdb
+src/main/resources/hw/verif/sim_vivado/**/*.xdbg
+src/main/resources/hw/verif/sim_vivado/**/xsimk
+src/main/resources/hw/verif/sim_vivado/**/*.jou
+src/main/resources/hw/verif/sim_vivado/**/*.log
+src/main/resources/hw/verif/sim_vivado/**/*.pb
+
+# External NVDLA hardware repo / generated hardware files
+src/main/resources/hw/
+
+# External NVDLA hardware repo
+src/main/resources/hw/

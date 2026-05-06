@@ -3,8 +3,7 @@ package nvidia.blocks.dla
 
 import chisel3._
 
-import org.chipsalliance.cde.config.{Field, Parameters, Config}
-import testchipip.soc.{SubsystemInjectorKey}
+import freechips.rocketchip.config.{Field, Parameters, Config}
 
 /**
  * Config fragment to add a NVDLA to the SoC.
@@ -14,5 +13,10 @@ import testchipip.soc.{SubsystemInjectorKey}
 class WithNVDLA(config: String, synthRAMs: Boolean = false) extends Config((site, here, up) => {
   case NVDLAKey => Some(NVDLAParams(config = config, raddress = 0x10040000L, synthRAMs = synthRAMs))
   case NVDLAFrontBusExtraBuffers => 0
-  case SubsystemInjectorKey => up(SubsystemInjectorKey) + NVDLADeviceInjector
+})
+
+class WithNVDLAReservedMemory(base: BigInt, size: BigInt) extends Config((site, here, up) => {
+  case NVDLAReservedMemKey =>
+    require(size > 0, "NVDLA reserved memory size must be greater than zero")
+    Some(NVDLAReservedMemParams(base, size))
 })

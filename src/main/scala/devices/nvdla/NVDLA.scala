@@ -2,7 +2,7 @@
 package nvidia.blocks.dla
 
 import chisel3._
-import org.chipsalliance.cde.config._
+import freechips.rocketchip.config._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.amba.axi4._
 import freechips.rocketchip.amba.apb._
@@ -25,7 +25,16 @@ class NVDLA(params: NVDLAParams)(implicit p: Parameters) extends LazyModule {
   val dataWidthAXI = if (params.config == "large") 256 else 64
 
   // DTS
-  val dtsdevice = new SimpleDevice("nvdla",Seq("nvidia,nv_" + params.config))
+  val dtsdevice = new SimpleDevice("nvdla", Seq("nvidia,nv_" + params.config)) {
+    override def describe(resources: ResourceBindings): Description = {
+      val Description(name, mapping) = super.describe(resources)
+      val iommus = resources("iommus").map(_.value)
+      val extra =
+        if (iommus.isEmpty) Map.empty[String, Seq[ResourceValue]]
+        else Map("iommus" -> iommus)
+      Description(name, mapping ++ extra)
+    }
+  }
 
   // dbb TL
   val dbb_tl_node = TLIdentityNode()
@@ -173,5 +182,4 @@ class NVDLA(params: NVDLAParams)(implicit p: Parameters) extends LazyModule {
     io_int(0)   := u_nvdla.io.dla_intr
   }
 }
-
 
