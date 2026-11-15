@@ -14,3 +14,9 @@ class WithNVDLA(config: String, synthRAMs: Boolean = false) extends Config((site
   case NVDLAKey => Some(NVDLAParams(config = config, raddress = 0x10040000L, synthRAMs = synthRAMs))
   case NVDLAFrontBusExtraBuffers => 0
 })
+
+class WithNVDLAReservedMemory(base: BigInt, size: BigInt) extends Config((site, here, up) => {
+  case NVDLAReservedMemKey =>
+    require(size > 0, "NVDLA reserved memory size must be greater than zero")
+    Some(NVDLAReservedMemParams(base, size))
+})

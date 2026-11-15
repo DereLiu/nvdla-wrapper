@@ -15,7 +15,11 @@ import nvidia.blocks.ip.dla._
 case class NVDLAParams(
   config: String,
   raddress: BigInt,
-  synthRAMs: Boolean = false
+  synthRAMs: Boolean = false,
+  // Leave dbb_axi_node unconnected inside NVDLA (no AXI4ToTL) so the caller
+  // can attach NVDLA's native AXI directly, e.g. to an IOMMU's AXI
+  // translation slave; dbb_tl_node is then unused.
+  dbbAxiOut: Boolean = false
 )
 
 class NVDLA(params: NVDLAParams)(implicit p: Parameters) extends LazyModule {
@@ -25,7 +29,16 @@ class NVDLA(params: NVDLAParams)(implicit p: Parameters) extends LazyModule {
   val dataWidthAXI = if (params.config == "large") 256 else 64
 
   // DTS
-  val dtsdevice = new SimpleDevice("nvdla",Seq("nvidia,nv_" + params.config))
+  val dtsdevice = new SimpleDevice("nvdla", Seq("nvidia,nv_" + params.config)) {
+    override def describe(resources: ResourceBindings): Description = {
+      val Description(name, mapping) = super.describe(resources)
+      val iommus = resources("iommus").map(_.value)
+      val extra =
+        if (iommus.isEmpty) Map.empty[String, Seq[ResourceValue]]
+        else Map("iommus" -> iommus)
+      Description(name, mapping ++ extra)
+    }
+  }
 
   // dbb TL
   val dbb_tl_node = TLIdentityNode()
@@ -39,15 +52,17 @@ class NVDLA(params: NVDLAParams)(implicit p: Parameters) extends LazyModule {
           id      = IdRange(0, 256))))))
 
   // TL <-> AXI
-  (dbb_tl_node
-    := TLBuffer()
-    := TLWidthWidget(dataWidthAXI/8)
-    := AXI4ToTL()
-    := AXI4UserYanker(capMaxFlight=Some(16))
-    := AXI4Fragmenter()
-    := AXI4IdIndexer(idBits=3)
-    := AXI4Buffer()
-    := dbb_axi_node)
+  if (!params.dbbAxiOut) {
+    (dbb_tl_node
+      := TLBuffer()
+      := TLWidthWidget(dataWidthAXI/8)
+      := AXI4ToTL()
+      := AXI4UserYanker(capMaxFlight=Some(16))
+      := AXI4Fragmenter()
+      := AXI4IdIndexer(idBits=3)
+      := AXI4Buffer()
+      := dbb_axi_node)
+  }
 
   // cvsram AXI
   val cvsram_axi_node = if (hasSecondAXI) Some(AXI4MasterNode(
@@ -92,6 +107,15 @@ class NVDLA(params: NVDLAParams)(implicit p: Parameters) extends LazyModule {
     u_nvdla.io.csb_rstn    := ~reset.asBool
 
     val (dbb, _) = dbb_axi_node.out(0)
+
+    // NVDLA has no AxBURST output and only issues INCR bursts. On the TL path
+    // the field is left undriven (it folds to FIXED, which AXI4Fragmenter
+    // splits into same-address beats); harmless there only while NVDLA
+    // issues single-beat requests, so drive it on the native AXI path.
+    if (params.dbbAxiOut) {
+      dbb.aw.bits.burst := AXI4Parameters.BURST_INCR
+      dbb.ar.bits.burst := AXI4Parameters.BURST_INCR
+    }
 
     dbb.aw.valid                            := u_nvdla.io.nvdla_core2dbb_aw_awvalid
     u_nvdla.io.nvdla_core2dbb_aw_awready    := dbb.aw.ready
@@ -173,5 +197,4 @@ class NVDLA(params: NVDLAParams)(implicit p: Parameters) extends LazyModule {
     io_int(0)   := u_nvdla.io.dla_intr
   }
 }
-
 
